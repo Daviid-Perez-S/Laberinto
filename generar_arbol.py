@@ -8,7 +8,6 @@ import os, hashlib
 from tkinter import *
 from tkinter import messagebox
 import cv2
-# import pygame
 
 def uniqueID():
 	return hashlib.md5(os.urandom(32)).hexdigest()[:5]
@@ -89,14 +88,12 @@ def izquierda(tablero, x, y):
 	return None
 
 def showRecorridos(nodoPadre):
-	preorder = PreOrderIter(nodoPadre)
-	camino = ""
-	for node in preorder:
-		if node.name == -100:
-			camino += f"{node.name}"
-			break
-		camino += f"{node.name} > "
-	print(camino)
+	print(nodoPadre)
+	camino = f'{nodoPadre.name}'
+	padre = nodoPadre.parent
+	while padre != None:
+		camino += f' > {padre}'
+		padre = padre.parent
 	return camino
 	
 
@@ -149,12 +146,27 @@ def doAlgorithm(size, obstaculos):
 
 	nodosVisitados.append(nodoRaiz.name)
 	nodoHijoEvaluando = nodoRaiz.children[0]
-	while nodoHijoEvaluando != None:
-		yaPasePorAqui = existeEnLaPila(nodosVisitados, nodoHijoEvaluando.name)
-		if yaPasePorAqui == False:
-			nodosVisitados.append(nodoHijoEvaluando.name)
-			if nodoHijoEvaluando.name == -100: # Solucion
-				break
+	nodoSalida = None
+
+	# Implementación con un nivel de profundidad máximo
+	while nodoHijoEvaluando != None: # Iteramos a lo bestia :v
+		profundidad = nodoHijoEvaluando.depth
+		if nodoHijoEvaluando.name == -100:
+			print("Acabo de encontrar la salida :D => ", nodoHijoEvaluando)
+			nodoSalida = nodoHijoEvaluando
+			nodoHijoEvaluando = None
+			break
+		elif profundidad > (expansionMaxima - 1):
+			# Pasar al siguiente nodo segun profundidad maxmma
+			# try:
+			_nodo = rightsibling(nodoHijoEvaluando)
+			if(_nodo != None):
+				nodoHijoEvaluando = _nodo
+			else:
+			# except Exception:
+				_nodo = rightsibling(nodoHijoEvaluando.parent)
+				nodoHijoEvaluando = _nodo
+		else:
 			coordenadasHijoEvaluando = getCoords(tablero, nodoHijoEvaluando.name)
 			_x = int(coordenadasHijoEvaluando[0])
 			_y = int(coordenadasHijoEvaluando[1])
@@ -162,7 +174,6 @@ def doAlgorithm(size, obstaculos):
 			if(valorArriba != None):
 				uid = uniqueID()
 				hijo = Node(valorArriba, parent=nodoHijoEvaluando, id=uid)
-			
 			valorDerecha = derecha(tablero, _x, _y)
 			if(valorDerecha != None):
 				uid = uniqueID()
@@ -177,31 +188,28 @@ def doAlgorithm(size, obstaculos):
 			if(valorIzquierda != None):
 				uid = uniqueID()
 				hijo = Node(valorIzquierda, parent=nodoHijoEvaluando, id=uid)
+
 			nodoHijoEvaluando = nodoHijoEvaluando.children[0]
-		else:
-			try:
-				nodoHijoEvaluando = rightsibling(nodoHijoEvaluando)
-			except Exception:
-				nodoHijoEvaluando = rightsibling(nodoHijoEvaluando.parent)
-	return nodoRaiz
+
+	return nodoRaiz, nodoSalida
 
 def evaluarEntradas(size, obstaculos, txtSize, txtObst):
 	txtSize.config(state=DISABLED)
 	txtObst.config(state=DISABLED)
 
 	nodoRaiz = None
-	while(True):
-		nodoRaiz = doAlgorithm(size, obstaculos)
-		# if(showRecorridos(nodoRaiz).find("-100") == -1):
-		# 	break
-		if(showRecorridos(nodoRaiz).find("-100") > 0):
-			break
+	nodoRaiz, nodoSalida = doAlgorithm(size, obstaculos)
+	print(nodoRaiz)
+	print(nodoSalida)
+	showRecorridos(nodoSalida)
 	
 	UniqueDotExporter(nodoRaiz).to_picture("arbol_unique.png")
-	showRecorridos(nodoRaiz)
+	# showRecorridos(nodoRaiz)
 	# showRecorridos(nodoRaiz, tablero)
+	cv2.namedWindow("Arbol resultante", cv2.WINDOW_NORMAL)
 	imagenResultante = cv2.imread("arbol_unique.png", cv2.IMREAD_GRAYSCALE)
-	cv2.imshow('Arbol resultante', imagenResultante)
+	ventanaImagenResizable = cv2.resize(imagenResultante, (800, 600))
+	cv2.imshow('Arbol resultante', ventanaImagenResizable)
 	cv2.waitKey()
 	cv2.destroyAllWindows()
 
@@ -213,7 +221,8 @@ def evaluarEntradas(size, obstaculos, txtSize, txtObst):
 if __name__ == "__main__":
 	window = Tk()
 	window.title("DSI - DFS Obstaculos")
-	window.geometry('350x200')	
+	# window.geometry('350x200')
+	window.resizable(False, False)
 	# Etiqueta de Tamaño de cuadricula
 	lblCuadSize = Label(window, text="Ingresa el tamaño de la cuadrícula: ", font=("Arial Bold", 15))
 	lblCuadSize.grid(column=0, row=0)
@@ -228,7 +237,7 @@ if __name__ == "__main__":
 	txtObstAmmount.config(state=NORMAL)
 	
 
-	# btnStart = Button(window, text="Let's go!", fg="black", command=lambda: evaluarEntradas(int(txtCuadSize.get()), int(txtObstAmmount.get()), txtCuadSize, txtObstAmmount))
-	btnStart = Button(window, text="Let's go!", fg="black", command=lambda: evaluarEntradas(3, 1, txtCuadSize, txtObstAmmount))
+	btnStart = Button(window, text="Ejecutar algoritmo", fg="black", command=lambda: evaluarEntradas(int(txtCuadSize.get()), int(txtObstAmmount.get()), txtCuadSize, txtObstAmmount))
+	# btnStart = Button(window, text="Let's go!", fg="black", command=lambda: evaluarEntradas(3, 1, txtCuadSize, txtObstAmmount))
 	btnStart.grid(column=0, row=2)
 	window.mainloop()
